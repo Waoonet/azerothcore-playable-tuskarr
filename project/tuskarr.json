@@ -1,0 +1,92 @@
+{
+  "project": "azerothcore-playable-tuskarr",
+  "target": "AzerothCore WotLK 3.3.5a",
+  "status": "development",
+  "races": {
+    "alliance": {
+      "display_name": "Tuskarr",
+      "planned_race_id": 17,
+      "team": "ALLIANCE",
+      "language": "Common",
+      "start_zone": "Kamagua",
+      "destination": "Stormwind"
+    },
+    "horde": {
+      "display_name": "Tuskarr",
+      "planned_race_id": 18,
+      "team": "HORDE",
+      "language": "Orcish",
+      "start_zone": "Kamagua",
+      "destination": "Thunder Bluff"
+    }
+  },
+  "classes": ["Warrior", "Hunter", "Shaman"],
+  "starting_level": 1,
+  "genders": {
+    "male": "WotLK Tuskarr model",
+    "female": "same WotLK Tuskarr model"
+  },
+  "reputation": {
+    "The Kalu'ak": "Friendly"
+  },
+  "racials": [
+    {
+      "name": "Thick Blubber",
+      "type": "passive",
+      "design": "+1% Stamina",
+      "status": "planned-needs-implementation-test"
+    },
+    {
+      "name": "Arctic Blood",
+      "type": "passive",
+      "design": "2% reduced chance to be hit by Frost spells",
+      "status": "planned-needs-implementation-test"
+    },
+    {
+      "name": "Born of the Sea",
+      "type": "passive",
+      "design": "+15% swim speed; +100% underwater breath duration",
+      "status": "planned-needs-implementation-test"
+    },
+    {
+      "name": "Master Angler",
+      "type": "passive",
+      "design": "+15 Fishing",
+      "status": "planned-needs-implementation-test"
+    },
+    {
+      "name": "Throw Net",
+      "type": "active",
+      "design": "15 yd instant 3-second root; breaks on damage; 2-minute cooldown; bosses/immune targets unaffected",
+      "status": "planned-needs-implementation-test"
+    }
+  ],
+  "starter_experience": {
+    "shared": [
+      "A Child of the Kalu'ak",
+      "The First Catch",
+      "Learning the Net",
+      "Hunter of the Shore",
+      "The Ancestors Watch"
+    ],
+    "alliance": [
+      "Friends From the South",
+      "A Test of Trust",
+      "An Alliance Beyond the Sea",
+      "A New Shore",
+      "A Tuskarr in Stormwind"
+    ],
+    "horde": [
+      "Visitors of the Earthmother",
+      "Spirits in Accord",
+      "Brothers of the Hunt",
+      "Across the Great Sea",
+      "A Tuskarr in Thunder Bluff"
+    ]
+  },
+  "distribution": {
+    "ship_original_blizzard_assets": false,
+    "client_strategy": "transform user-supplied compatible 3.3.5a client files",
+    "license": "MIT for project-authored code/assets"
+  }
+}
