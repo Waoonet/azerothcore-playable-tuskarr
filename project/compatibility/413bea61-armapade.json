@@ -1,0 +1,45 @@
+{
+  "profile": "armapade-2026-09-14",
+  "status": "staging-tested-inputs",
+  "azerothcore_commit": "413bea61a85e20d9caef7d66fc601a661fdddd9d",
+  "worldserver": {
+    "binary": "/home/azeroth/server/bin/worldserver",
+    "working_directory": "/home/azeroth/server/bin",
+    "data_dir_config": ".",
+    "active_dbc_directory": "/home/azeroth/server/bin/dbc"
+  },
+  "dbc_sha256": {
+    "ChrRaces.dbc": "3d3e1443e8e97b1810275a45bc3f0588c83d876d04121401cc5adaa02f507bcd",
+    "CharBaseInfo.dbc": "1e81c6f8a218b187187c9f13e65cad39920aab56a57f2955d72385d94fee2e25",
+    "CharStartOutfit.dbc": "a026407cd4fa60867ac2eda1070e89679e811774b476980902125f6d5af61540",
+    "SkillRaceClassInfo.dbc": "341a42678faee5f208e0874ab154ee174b99ba469306df7458bdaf0ffcf76967",
+    "SkillLineAbility.dbc": "4154b833d6a26b9b9ce53851d56cb594f0813c0936a72ec89f933cc69abe42c3",
+    "Spell.dbc": "d5cce1a83550dcfa9eb2f0251dbb11fd24c272534b2b1a9b230924a44d817ab3",
+    "CreatureDisplayInfo.dbc": "a12109c610ca82af993d7c8562617ad88ab538293649f89ee0e4bed7ce85a37a",
+    "CreatureDisplayInfoExtra.dbc": "fcc19e68414c4abf5a790fc327cad0f724e3b70fdc1ec8e69eebb8664a467522",
+    "CreatureModelData.dbc": "2ff650f7a1b20a7edb088ffaa88f13b747b63a2a29ee6e3dc3c0d475d5ccdfe2"
+  },
+  "audited_stock_races": {
+    "17": {
+      "identity": "Tuskarr",
+      "flags": 1,
+      "male_model": 21780,
+      "female_model": 21781,
+      "team_id": 7,
+      "alliance_field": 2
+    },
+    "18": {
+      "identity": "Forest Troll",
+      "flags": 15,
+      "male_model": 21963,
+      "female_model": 21964,
+      "team_id": 7,
+      "alliance_field": 2
+    }
+  },
+  "notes": [
+    "The server DBC set and /home/azeroth/wow-client/dbc matched for the nine audited files.",
+    "Race 18 is intentionally repurposed by this project and must not be used simultaneously for Forest Troll player support.",
+    "This profile records audit inputs; it does not imply that the playable-race implementation has passed in-game testing."
+  ]
+}
