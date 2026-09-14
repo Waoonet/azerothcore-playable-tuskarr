@@ -9,6 +9,9 @@ required=(
   LICENSE
   project/tuskarr.json
   tools/audit-azerothcore.sh
+  tools/stage-milestone2.sh
+  tools/stage-client-preflight.sh
+  tools/audit-client-glue.py
   tools/validate-repo.sh
 )
 
@@ -17,6 +20,16 @@ for path in "${required[@]}"; do
 done
 
 python3 -m json.tool project/tuskarr.json >/dev/null
+
+# Syntax-check every project-authored shell/Python tool. This deliberately does
+# not execute client/server mutation paths in CI.
+while IFS= read -r -d '' script; do
+  bash -n "$script"
+done < <(find tools -maxdepth 1 -type f -name '*.sh' -print0 | sort -z)
+
+while IFS= read -r -d '' script; do
+  python3 -m py_compile "$script"
+done < <(find tools -maxdepth 1 -type f -name '*.py' -print0 | sort -z)
 
 # Do not allow original game binary/data archives or common extracted Blizzard assets
 # to be committed. Project-authored source/patch definitions are fine.
