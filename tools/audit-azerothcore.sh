@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="${1:-.}"
 INSTALL_ROOT="${2:-$(cd "$(dirname "$ROOT")" 2>/dev/null && pwd)/server}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ ! -d "$ROOT/src" ]]; then
   echo "ERROR: '$ROOT' does not look like an AzerothCore source checkout (missing src/)." >&2
@@ -152,6 +153,20 @@ if [[ -n "$DBC_DIR" ]]; then
       printf '%-34s MISSING\n' "$dbc"
     fi
   done
+
+  section 'ChrRaces.dbc comparison rows'
+  if command -v python3 >/dev/null 2>&1 && [[ -f "$SCRIPT_DIR/inspect-dbc.py" ]]; then
+    python3 "$SCRIPT_DIR/inspect-dbc.py" "$DBC_DIR/ChrRaces.dbc" \
+      --id 1 --id 2 --id 6 --id 11 --id 17 --id 18 || true
+
+    section 'Existing CharBaseInfo rows for race IDs 17 and 18'
+    if [[ -f "$DBC_DIR/CharBaseInfo.dbc" ]]; then
+      python3 "$SCRIPT_DIR/inspect-dbc.py" "$DBC_DIR/CharBaseInfo.dbc" \
+        --id 17 --id 18 || true
+    fi
+  else
+    echo 'python3 or tools/inspect-dbc.py unavailable; skipping row inspection.'
+  fi
 else
   echo 'ChrRaces.dbc not found in the common install locations checked.'
 fi
