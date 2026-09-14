@@ -11,6 +11,9 @@ if [[ ! -d "$ROOT/src" ]]; then
 fi
 
 ROOT="$(cd "$ROOT" && pwd)"
+if [[ -d "$INSTALL_ROOT" ]]; then
+  INSTALL_ROOT="$(cd "$INSTALL_ROOT" && pwd)"
+fi
 
 section() {
   printf '\n===== %s =====\n' "$1"
@@ -52,7 +55,39 @@ show_context() {
   fi
 }
 
-printf 'Playable Tuskarr compatibility audit v2\n'
+add_dbc_candidate() {
+  local dir="$1"
+  [[ -n "$dir" ]] || return 0
+  [[ -f "$dir/ChrRaces.dbc" ]] || return 0
+  case "\n${DBC_CANDIDATES[*]:-}\n" in
+    *"\n$dir\n"*) ;;
+    *) DBC_CANDIDATES+=("$dir") ;;
+  esac
+}
+
+resolve_datadir_candidate() {
+  local value="$1"
+  local base="$2"
+  [[ -n "$value" ]] || return 0
+
+  if [[ "$value" = /* ]]; then
+    for suffix in "" dbc dbc/enUS dbc/enGB DBC DBC/enUS DBC/enGB; do
+      [[ -n "$suffix" ]] && add_dbc_candidate "$value/$suffix" || add_dbc_candidate "$value"
+    done
+  else
+    for prefix in "$base" "$INSTALL_ROOT" "$INSTALL_ROOT/bin"; do
+      for suffix in "" dbc dbc/enUS dbc/enGB DBC DBC/enUS DBC/enGB; do
+        if [[ -n "$suffix" ]]; then
+          add_dbc_candidate "$prefix/$value/$suffix"
+        else
+          add_dbc_candidate "$prefix/$value"
+        fi
+      done
+    done
+  fi
+}
+
+printf 'Playable Tuskarr compatibility audit v3\n'
 printf 'Source root:  %s\n' "$ROOT"
 printf 'Install root: %s\n' "$INSTALL_ROOT"
 
@@ -128,47 +163,117 @@ for name in playercreateinfo player_race_stats playercreateinfo_skills playercre
   fi
 done
 
-section 'Installed server DBC inventory'
-DBC_DIR=''
+section 'Worldserver runtime / DataDir discovery'
+DBC_CANDIDATES=()
+CONF_CANDIDATES=(
+  "$INSTALL_ROOT/etc/worldserver.conf"
+  "$INSTALL_ROOT/etc/worldserver.conf.dist"
+  "$ROOT/env/dist/etc/worldserver.conf.dist"
+)
+
+WORLD_PID="$(pgrep -u azeroth -x worldserver 2>/dev/null | head -n1 || pgrep -x worldserver 2>/dev/null | head -n1 || true)"
+WORLD_CWD=''
+if [[ -n "$WORLD_PID" && -e "/proc/$WORLD_PID/cwd" ]]; then
+  WORLD_CWD="$(readlink -f "/proc/$WORLD_PID/cwd" 2>/dev/null || true)"
+  printf 'Running worldserver PID: %s\n' "$WORLD_PID"
+  printf 'worldserver cwd:        %s\n' "$WORLD_CWD"
+  printf 'worldserver command:    %s\n' "$(tr '\0' ' ' < "/proc/$WORLD_PID/cmdline" 2>/dev/null || true)"
+fi
+
+for conf in "${CONF_CANDIDATES[@]}"; do
+  [[ -f "$conf" ]] || continue
+  printf '\nConfig candidate: %s\n' "$conf"
+  DATA_DIR="$(sed -nE 's/^[[:space:]]*DataDir[[:space:]]*=[[:space:]]*"?([^"#;]+)"?.*/\1/p' "$conf" | head -n1 | sed -E 's/[[:space:]]+$//' || true)"
+  if [[ -n "$DATA_DIR" ]]; then
+    printf 'Configured DataDir: %s\n' "$DATA_DIR"
+    resolve_datadir_candidate "$DATA_DIR" "$(dirname "$conf")"
+    [[ -n "$WORLD_CWD" ]] && resolve_datadir_candidate "$DATA_DIR" "$WORLD_CWD"
+  else
+    echo 'Configured DataDir: not found in this file'
+  fi
+done
+
+# Common locations and locations relative to the running process.
 for candidate in \
   "$INSTALL_ROOT/data/dbc" \
   "$INSTALL_ROOT/data/dbc/enUS" \
   "$INSTALL_ROOT/data/dbc/enGB" \
-  "$INSTALL_ROOT/dbc"; do
-  if [[ -f "$candidate/ChrRaces.dbc" ]]; then
-    DBC_DIR="$candidate"
-    break
-  fi
+  "$INSTALL_ROOT/dbc" \
+  "$ROOT/data/dbc" \
+  "$ROOT/data/dbc/enUS" \
+  "$ROOT/data/dbc/enGB"; do
+  add_dbc_candidate "$candidate"
 done
 
-if [[ -n "$DBC_DIR" ]]; then
-  printf 'DBC directory: %s\n' "$DBC_DIR"
-  for dbc in ChrRaces.dbc CharBaseInfo.dbc CharStartOutfit.dbc SkillRaceClassInfo.dbc SkillLineAbility.dbc Spell.dbc CreatureDisplayInfo.dbc CreatureDisplayInfoExtra.dbc CreatureModelData.dbc; do
-    if [[ -f "$DBC_DIR/$dbc" ]]; then
-      printf '%-34s size=%-10s sha256=%s\n' \
-        "$dbc" \
-        "$(stat -c '%s' "$DBC_DIR/$dbc")" \
-        "$(sha256sum "$DBC_DIR/$dbc" | awk '{print $1}')"
-    else
-      printf '%-34s MISSING\n' "$dbc"
+if [[ -n "$WORLD_CWD" ]]; then
+  for candidate in \
+    "$WORLD_CWD/dbc" \
+    "$WORLD_CWD/data/dbc" \
+    "$WORLD_CWD/../data/dbc" \
+    "$WORLD_CWD/../data/dbc/enUS" \
+    "$WORLD_CWD/../data/dbc/enGB"; do
+    add_dbc_candidate "$(readlink -m "$candidate")"
+  done
+fi
+
+section 'Filesystem search for ChrRaces.dbc'
+SEARCH_ROOT="$(dirname "$ROOT")"
+printf 'Search root: %s\n' "$SEARCH_ROOT"
+while IFS= read -r chr; do
+  [[ -n "$chr" ]] || continue
+  printf '%s\n' "$chr"
+  add_dbc_candidate "$(dirname "$chr")"
+done < <(find "$SEARCH_ROOT" -maxdepth 10 -type f -name 'ChrRaces.dbc' -print 2>/dev/null | sort)
+
+section 'Installed server DBC inventory'
+if (( ${#DBC_CANDIDATES[@]} == 0 )); then
+  echo 'No ChrRaces.dbc was found under the configured/runtime/common locations or the Azeroth install tree.'
+else
+  BEST_DBC_DIR=''
+  BEST_SCORE=-1
+  REQUIRED_DBC=(ChrRaces.dbc CharBaseInfo.dbc CharStartOutfit.dbc SkillRaceClassInfo.dbc SkillLineAbility.dbc Spell.dbc CreatureDisplayInfo.dbc CreatureDisplayInfoExtra.dbc CreatureModelData.dbc)
+
+  idx=0
+  for dir in "${DBC_CANDIDATES[@]}"; do
+    idx=$((idx + 1))
+    score=0
+    for dbc in "${REQUIRED_DBC[@]}"; do
+      [[ -f "$dir/$dbc" ]] && score=$((score + 1))
+    done
+    printf '\nCandidate %d: %s (%d/%d required files)\n' "$idx" "$dir" "$score" "${#REQUIRED_DBC[@]}"
+    for dbc in "${REQUIRED_DBC[@]}"; do
+      if [[ -f "$dir/$dbc" ]]; then
+        printf '%-34s size=%-10s sha256=%s\n' \
+          "$dbc" \
+          "$(stat -c '%s' "$dir/$dbc")" \
+          "$(sha256sum "$dir/$dbc" | awk '{print $1}')"
+      else
+        printf '%-34s MISSING\n' "$dbc"
+      fi
+    done
+
+    if (( score > BEST_SCORE )); then
+      BEST_SCORE=$score
+      BEST_DBC_DIR="$dir"
     fi
   done
 
+  printf '\nSelected best candidate for inspection: %s (%d/%d files)\n' \
+    "$BEST_DBC_DIR" "$BEST_SCORE" "${#REQUIRED_DBC[@]}"
+
   section 'ChrRaces.dbc comparison rows'
   if command -v python3 >/dev/null 2>&1 && [[ -f "$SCRIPT_DIR/inspect-dbc.py" ]]; then
-    python3 "$SCRIPT_DIR/inspect-dbc.py" "$DBC_DIR/ChrRaces.dbc" \
+    python3 "$SCRIPT_DIR/inspect-dbc.py" "$BEST_DBC_DIR/ChrRaces.dbc" \
       --id 1 --id 2 --id 6 --id 11 --id 17 --id 18 || true
 
     section 'Existing CharBaseInfo rows for race IDs 17 and 18'
-    if [[ -f "$DBC_DIR/CharBaseInfo.dbc" ]]; then
-      python3 "$SCRIPT_DIR/inspect-dbc.py" "$DBC_DIR/CharBaseInfo.dbc" \
+    if [[ -f "$BEST_DBC_DIR/CharBaseInfo.dbc" ]]; then
+      python3 "$SCRIPT_DIR/inspect-dbc.py" "$BEST_DBC_DIR/CharBaseInfo.dbc" \
         --id 17 --id 18 || true
     fi
   else
     echo 'python3 or tools/inspect-dbc.py unavailable; skipping row inspection.'
   fi
-else
-  echo 'ChrRaces.dbc not found in the common install locations checked.'
 fi
 
 section 'Result'
