@@ -65,6 +65,29 @@ chmod 700 "$BACKUP"
 REPORT="$BACKUP/INSTALL-REPORT.txt"
 exec > >(tee "$REPORT") 2>&1
 
+ROLLBACK_ARMED=0
+BOT_IDS=""
+ONLINE_ROWS=""
+cleanup_tmp() {
+    [[ -n "$BOT_IDS" ]] && rm -f "$BOT_IDS" || true
+    [[ -n "$ONLINE_ROWS" ]] && rm -f "$ONLINE_ROWS" || true
+}
+on_exit() {
+    local rc=$?
+    cleanup_tmp
+    if (( rc != 0 && ROLLBACK_ARMED == 1 )); then
+        trap - EXIT
+        echo "AUTO-ROLLBACK: an error occurred after live downtime began. Restoring original realm state."
+        if bash "$BACKUP/rollback.sh" "$BACKUP"; then
+            echo "AUTO-ROLLBACK: completed successfully."
+        else
+            echo "AUTO-ROLLBACK: rollback script reported an error; inspect $BACKUP/ROLLBACK-REPORT.txt" >&2
+        fi
+    fi
+    exit "$rc"
+}
+trap on_exit EXIT
+
 echo "===== Playable Tuskarr live PoC install ====="
 echo "Bundle:  $BUNDLE"
 echo "Backup:  $BACKUP"
@@ -142,8 +165,8 @@ for cfg in "${PB_CONFS[@]}"; do
     prefix="$candidate"
 done
 [[ -n "$prefix" && "$prefix" =~ ^[A-Za-z0-9_.-]+$ ]] || fail "could not safely determine random-bot account prefix"
-BOT_IDS="$(mktemp)"; ONLINE_ROWS="$(mktemp)"
-trap 'rm -f "$BOT_IDS" "$ONLINE_ROWS"' EXIT
+BOT_IDS="$(mktemp)"
+ONLINE_ROWS="$(mktemp)"
 mysql_query "$LOGIN_INFO" "SELECT id FROM account WHERE username LIKE '${prefix}%';" > "$BOT_IDS"
 mysql_query "$CHAR_INFO" 'SELECT account,name FROM characters WHERE online=1 ORDER BY account,name;' > "$ONLINE_ROWS"
 NONBOTS="$(awk 'NR==FNR{b[$1]=1;next} !($1 in b){n++} END{print n+0}' "$BOT_IDS" "$ONLINE_ROWS")"
@@ -156,6 +179,8 @@ if (( NONBOTS != 0 )); then
 fi
 echo "PASS: immediate downtime gate: TOTAL=$TOTAL NONBOTS=0"
 
+# From this point onward, any non-zero exit automatically runs the rollback script.
+ROLLBACK_ARMED=1
 systemctl stop "$SERVICE"
 for _ in {1..60}; do
     pgrep -x worldserver >/dev/null || break
@@ -180,19 +205,15 @@ echo "PASS: binary, five server DBCs, SQL, and two client MPQs installed"
 systemctl start "$SERVICE"
 sleep 8
 if ! systemctl is-active --quiet "$SERVICE" || ! pgrep -x worldserver >/dev/null; then
-    echo "FAIL: worldserver did not survive startup; capturing diagnostics and rolling back"
     systemctl status "$SERVICE" --no-pager > "$BACKUP/logs/failed-status.txt" 2>&1 || true
     journalctl -u "$SERVICE" -n 200 --no-pager > "$BACKUP/logs/failed-journal.txt" 2>&1 || true
-    bash "$BACKUP/rollback.sh" "$BACKUP"
-    exit 2
+    fail "worldserver did not survive startup"
 fi
 
 sleep 8
 if ! systemctl is-active --quiet "$SERVICE" || ! pgrep -x worldserver >/dev/null; then
-    echo "FAIL: worldserver exited shortly after startup; rolling back"
     journalctl -u "$SERVICE" -n 200 --no-pager > "$BACKUP/logs/failed-journal.txt" 2>&1 || true
-    bash "$BACKUP/rollback.sh" "$BACKUP"
-    exit 2
+    fail "worldserver exited shortly after startup"
 fi
 
 echo "PASS: worldserver active after restart"
@@ -213,6 +234,10 @@ echo "SQL_COUNTS playercreateinfo=$PCI player_race_stats=$PRS playercreateinfo_a
 [[ "$PCI" == 6 && "$PRS" == 2 && "$PCA" == 20 ]] || fail "unexpected PoC SQL row counts"
 
 git -C "$CORE_ROOT" apply -R --check "$PATCH" >/dev/null || fail "playerbots source patch is not present after successful build"
+
+ROLLBACK_ARMED=0
+trap - EXIT
+cleanup_tmp
 
 echo "===== LIVE POC INSTALL RESULT ====="
 echo "RESULT: PASS"
