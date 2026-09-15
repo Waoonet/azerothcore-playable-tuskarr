@@ -11,6 +11,8 @@ required=(
   tools/audit-azerothcore.sh
   tools/stage-milestone2.sh
   tools/stage-client-preflight.sh
+  tools/extract-client-glue.sh
+  tools/tuskarr-mpq-extract.cpp
   tools/audit-client-glue.py
   tools/validate-repo.sh
 )
