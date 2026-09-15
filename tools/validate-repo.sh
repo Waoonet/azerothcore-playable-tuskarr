@@ -20,6 +20,7 @@ required=(
   tools/tuskarr-mpq-pack.cpp
   tools/stage-milestone4.sh
   tools/live-poc-preflight.sh
+  tools/live-poc-preflight-v2.sh
   tools/validate-repo.sh
 )
 
