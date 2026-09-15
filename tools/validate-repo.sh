@@ -16,6 +16,7 @@ required=(
   tools/audit-client-glue.py
   tools/analyze-extracted-glue.sh
   tools/build-client-ui-patch.py
+  tools/build-client-ui-patch-v2.py
   tools/tuskarr-mpq-pack.cpp
   tools/stage-milestone4.sh
   tools/validate-repo.sh
