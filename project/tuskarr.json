@@ -5,6 +5,8 @@
   "races": {
     "alliance": {
       "display_name": "Tuskarr",
+      "family_name": "Icefin",
+      "family_identity": "coastal hunters and fishers who emphasize patience, trapping and survival in the cold",
       "planned_race_id": 17,
       "team": "ALLIANCE",
       "language": "Common",
@@ -13,6 +15,8 @@
     },
     "horde": {
       "display_name": "Tuskarr",
+      "family_name": "Stonewake",
+      "family_identity": "tundra-roaming kin with a stronger bond to the spirits of the land and Tauren traditions",
       "planned_race_id": 18,
       "team": "HORDE",
       "language": "Orcish",
@@ -29,38 +33,57 @@
   "reputation": {
     "The Kalu'ak": "Friendly"
   },
-  "racials": [
-    {
-      "name": "Thick Blubber",
-      "type": "passive",
-      "design": "+1% Stamina",
-      "status": "planned-needs-implementation-test"
-    },
-    {
-      "name": "Arctic Blood",
-      "type": "passive",
-      "design": "2% reduced chance to be hit by Frost spells",
-      "status": "planned-needs-implementation-test"
-    },
-    {
-      "name": "Born of the Sea",
-      "type": "passive",
-      "design": "+15% swim speed; +100% underwater breath duration",
-      "status": "planned-needs-implementation-test"
-    },
-    {
-      "name": "Master Angler",
-      "type": "passive",
-      "design": "+15 Fishing",
-      "status": "planned-needs-implementation-test"
-    },
-    {
-      "name": "Throw Net",
-      "type": "active",
-      "design": "15 yd instant 3-second root; breaks on damage; 2-minute cooldown; bosses/immune targets unaffected",
-      "status": "planned-needs-implementation-test"
-    }
-  ],
+  "racial_design": {
+    "principle": "Both families share their species traits, while each family has one unique passive and one unique active to make the cross-faction choice meaningful without forcing a single best faction.",
+    "shared": [
+      {
+        "name": "Thick Blubber",
+        "type": "passive",
+        "design": "+1% Stamina",
+        "status": "planned-needs-implementation-test"
+      },
+      {
+        "name": "Born of the Sea",
+        "type": "passive",
+        "design": "+15% swim speed; +100% underwater breath duration",
+        "status": "planned-needs-implementation-test"
+      },
+      {
+        "name": "Master Angler",
+        "type": "passive",
+        "design": "+15 Fishing",
+        "status": "planned-needs-implementation-test"
+      }
+    ],
+    "alliance_icefin": [
+      {
+        "name": "Arctic Blood",
+        "type": "passive",
+        "design": "2% reduced chance to be hit by Frost spells",
+        "status": "planned-needs-implementation-test"
+      },
+      {
+        "name": "Throw Net",
+        "type": "active",
+        "design": "15 yd instant 3-second root; breaks on damage; 2-minute cooldown; bosses/immune targets unaffected",
+        "status": "planned-needs-implementation-test"
+      }
+    ],
+    "horde_stonewake": [
+      {
+        "name": "Earthmother's Blessing",
+        "type": "passive",
+        "design": "+1% healing received",
+        "status": "planned-needs-implementation-test"
+      },
+      {
+        "name": "Tundra Rush",
+        "type": "active",
+        "design": "+20% movement speed for 6 seconds; 2-minute cooldown",
+        "status": "planned-needs-implementation-test"
+      }
+    ]
+  },
   "starter_experience": {
     "shared": [
       "A Child of the Kalu'ak",
@@ -69,14 +92,14 @@
       "Hunter of the Shore",
       "The Ancestors Watch"
     ],
-    "alliance": [
+    "alliance_icefin": [
       "Friends From the South",
       "A Test of Trust",
       "An Alliance Beyond the Sea",
       "A New Shore",
       "A Tuskarr in Stormwind"
     ],
-    "horde": [
+    "horde_stonewake": [
       "Visitors of the Earthmother",
       "Spirits in Accord",
       "Brothers of the Hunt",
