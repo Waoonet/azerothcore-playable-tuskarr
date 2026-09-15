@@ -25,6 +25,7 @@ required=(
   tools/install-live-poc-v4.sh
   tools/rollback-live-poc.sh
   tools/audit-build-provenance.sh
+  tools/audit-nonbot-online-sessions.sh
   tools/stage-fresh-worldserver.sh
   tools/finalize-fresh-worldserver.sh
   tools/repair-fresh-worldserver-confdir.sh
