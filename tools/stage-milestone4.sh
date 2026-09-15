@@ -41,12 +41,13 @@ echo "It builds a deployment bundle under /root only."
 echo
 echo "===== Tool syntax gate ====="
 python3 -m py_compile "$PROJECT_ROOT/tools/build-client-ui-patch.py"
-echo "Python generator: PASS"
+python3 -m py_compile "$PROJECT_ROOT/tools/build-client-ui-patch-v2.py"
+echo "Python generators: PASS"
 
 
 echo
 echo "===== Generate exact-source client UI patch tree ====="
-python3 "$PROJECT_ROOT/tools/build-client-ui-patch.py" "$EXTRACTION" "$OUT"
+python3 "$PROJECT_ROOT/tools/build-client-ui-patch-v2.py" "$EXTRACTION" "$OUT"
 
 PATCH_TREE="$OUT/client/patch-tree"
 [[ -f "$PATCH_TREE/DBFilesClient/ChrRaces.dbc" ]] || fail "generated patch tree lacks ChrRaces.dbc"
