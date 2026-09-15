@@ -26,6 +26,7 @@ required=(
   tools/audit-build-provenance.sh
   tools/stage-fresh-worldserver.sh
   tools/finalize-fresh-worldserver.sh
+  tools/repair-fresh-worldserver-confdir.sh
   tools/validate-repo.sh
 )
 
