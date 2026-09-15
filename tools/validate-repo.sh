@@ -21,6 +21,8 @@ required=(
   tools/stage-milestone4.sh
   tools/live-poc-preflight.sh
   tools/live-poc-preflight-v2.sh
+  tools/install-live-poc.sh
+  tools/rollback-live-poc.sh
   tools/validate-repo.sh
 )
 
