@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+CORE_ROOT="${CORE_ROOT:-/home/azeroth/azerothcore}"
 SERVER_ROOT="${SERVER_ROOT:-/home/azeroth/server}"
+CLIENT_ROOT="${CLIENT_ROOT:-/home/azeroth/wow-client}"
 BACKUP="${1:-}"
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
@@ -15,14 +17,51 @@ section() { printf '\n===== %s =====\n' "$*"; }
 
 section "Playable Tuskarr failed live PoC diagnostic"
 echo "Backup:  $BACKUP"
+echo "Core:    $CORE_ROOT"
 echo "Server:  $SERVER_ROOT"
+echo "Client:  $CLIENT_ROOT"
 echo "Time:    $(date -Is)"
 
-section "Rollback state"
+section "Rollback report"
 if [[ -f "$BACKUP/ROLLBACK-REPORT.txt" ]]; then
     cat "$BACKUP/ROLLBACK-REPORT.txt"
 else
     echo "No ROLLBACK-REPORT.txt found"
+fi
+
+section "Rollback integrity"
+if [[ -f "$BACKUP/live/worldserver" ]] && cmp -s "$BACKUP/live/worldserver" "$SERVER_ROOT/bin/worldserver"; then
+    echo "PASS: live worldserver matches pre-install backup"
+else
+    echo "FAIL: live worldserver does not match pre-install backup"
+fi
+for f in ChrRaces.dbc CharBaseInfo.dbc CharStartOutfit.dbc SkillRaceClassInfo.dbc SkillLineAbility.dbc; do
+    if [[ -f "$BACKUP/live/dbc/$f" ]] && cmp -s "$BACKUP/live/dbc/$f" "$SERVER_ROOT/bin/dbc/$f"; then
+        echo "PASS: $f restored byte-for-byte"
+    else
+        echo "FAIL: $f differs from pre-install backup"
+    fi
+done
+
+if [[ -d "$CORE_ROOT/.git" ]]; then
+    echo "Core HEAD: $(git -C "$CORE_ROOT" rev-parse HEAD 2>/dev/null || true)"
+    if [[ -z "$(git -C "$CORE_ROOT" status --porcelain 2>/dev/null || true)" ]]; then
+        echo "PASS: AzerothCore working tree is clean after rollback"
+    else
+        echo "WARN: AzerothCore working tree has changes after rollback"
+        git -C "$CORE_ROOT" status --short || true
+    fi
+fi
+
+if [[ -f "$BACKUP/metadata.env" ]]; then
+    # shellcheck disable=SC1090
+    source "$BACKUP/metadata.env"
+    if [[ "${GLOBAL_PATCH_EXISTED:-0}" == "0" ]]; then
+        [[ ! -e "$CLIENT_ROOT/Data/patch-4.MPQ" ]] && echo "PASS: patch-4.MPQ removed by rollback" || echo "FAIL: patch-4.MPQ still exists"
+    fi
+    if [[ "${LOCALE_PATCH_EXISTED:-0}" == "0" ]]; then
+        [[ ! -e "$CLIENT_ROOT/Data/enUS/patch-enUS-4.MPQ" ]] && echo "PASS: patch-enUS-4.MPQ removed by rollback" || echo "FAIL: patch-enUS-4.MPQ still exists"
+    fi
 fi
 
 echo
