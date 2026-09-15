@@ -2,6 +2,8 @@
 
 This document defines the implementation order and hard test gates for playable Tuskarr.
 
+The two playable race IDs represent two related Tuskarr families rather than two biologically different races. Both remain displayed as **Tuskarr** in the client. Race 17 is the Alliance-aligned **Icefin** family; race 18 is the Horde-aligned **Stonewake** family. Shared racials represent Tuskarr biology and culture, while each family receives one unique passive and one unique active so cross-faction play still gives players a meaningful family choice.
+
 ## Milestone 1 — Foundation
 
 Complete when:
@@ -42,6 +44,8 @@ Gate D: restart server; all six can log in again.
 - Point male and female race model fields to the same Tuskarr model.
 - Disable/neutralize unsupported appearance selectors for v1.
 - Correct character-creation camera.
+- Give Icefin and Stonewake coherent but distinguishable appearance sets without reusing Forest Troll customization data.
+- Correct character-select faction backgrounds for both families.
 - Systematically test animations and weapon attachment points.
 - Test armor slots before choosing a custom armor strategy.
 
@@ -62,21 +66,31 @@ No claim of normal player armor compatibility is considered verified until this 
 - Verify Warrior stances/rage/weapons/shields/plate progression.
 - Verify Hunter ranged combat/pets/stables/ammunition/mail progression.
 - Verify Shaman spells/totems/shields/mail progression, especially Alliance-specific assumptions.
-- Configure Common for Alliance and Orcish for Horde.
+- Configure Common for Icefin/Alliance and Orcish for Stonewake/Horde.
 - Set The Kalu'ak to Friendly.
 - Configure normal starter equipment and action bars.
 
-## Milestone 5 — Racials
+## Milestone 5 — Family racials
 
-Implement and test:
+Shared Tuskarr racials:
 
-- Thick Blubber;
-- Arctic Blood;
-- Born of the Sea;
-- Master Angler;
-- Throw Net.
+- **Thick Blubber** — +1% Stamina.
+- **Born of the Sea** — +15% swim speed and +100% underwater breath duration.
+- **Master Angler** — +15 Fishing.
 
-Throw Net must be tested for range, LOS, cooldown, break-on-damage, PvP behavior, diminishing returns and immune/boss targets.
+Icefin family — Alliance, coastal/control identity:
+
+- **Arctic Blood** — 2% reduced chance to be hit by Frost spells.
+- **Throw Net** — 15 yd instant 3-second root, breaks on damage, 2-minute cooldown; bosses/immune targets unaffected.
+
+Stonewake family — Horde, tundra/spirit identity:
+
+- **Earthmother's Blessing** — +1% healing received.
+- **Tundra Rush** — +20% movement speed for 6 seconds, 2-minute cooldown.
+
+The numbers above are design targets until implemented and tested. Neither family should become the mandatory PvE or PvP choice.
+
+Throw Net must be tested for range, LOS, cooldown, break-on-damage, PvP behavior, diminishing returns and immune/boss targets. Tundra Rush must be tested for stacking behavior with class movement effects, mounts, snares and PvP restrictions. Earthmother's Blessing must be verified against all healing sources before balance is considered final.
 
 ## Milestone 6 — Kamagua starter experience
 
@@ -88,7 +102,7 @@ Shared level 1 introduction:
 4. Hunter of the Shore
 5. The Ancestors Watch
 
-Alliance branch:
+Icefin family / Alliance branch:
 
 1. Friends From the South
 2. A Test of Trust
@@ -96,13 +110,15 @@ Alliance branch:
 4. A New Shore
 5. A Tuskarr in Stormwind
 
-Horde branch:
+Stonewake family / Horde branch:
 
 1. Visitors of the Earthmother
 2. Spirits in Accord
 3. Brothers of the Hunt
 4. Across the Great Sea
 5. A Tuskarr in Thunder Bluff
+
+The shared introduction should establish that Icefin and Stonewake are related Kalu'ak families with different traditions, not separate species. The faction branch then explains why Icefin members develop ties with Stormwind while Stonewake members develop ties with Thunder Bluff.
 
 The Kamagua starter pocket must use safe custom low-level creatures. Normal Northrend creatures must not make the area unusable for level-1 characters.
 
@@ -111,6 +127,7 @@ Final transport is controlled/scripted; a level-5 character is not required to p
 ## Milestone 7 — Mounts and polish
 
 - Tuskarr-themed racial mount vendor/quest;
+- family-sensitive quest/lore text and, where feasible, visual differentiation;
 - race icons and polished Glue strings;
 - optional original custom armor appearances if stock player armor is inadequate;
 - documentation and screenshots;
@@ -131,7 +148,7 @@ A public release must include:
 
 ## Regression matrix
 
-Before declaring a release stable, test both factions for:
+Before declaring a release stable, test both families/factions for:
 
 - creation/login/logout/restart;
 - death/corpse/ghost/resurrection;
@@ -143,4 +160,5 @@ Before declaring a release stable, test both factions for:
 - professions;
 - mounts/vehicles/transports/swimming;
 - achievements and race/faction-restricted content;
-- all three classes through representative progression.
+- all three classes through representative progression;
+- family-specific racial balance and faction-independent group play.
