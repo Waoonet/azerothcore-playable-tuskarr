@@ -23,24 +23,93 @@ import sys
 src = Path(sys.argv[1]).read_text()
 out = Path(sys.argv[2])
 
-replacements = {
+simple_replacements = {
     'strings "$ARTIFACT" | grep -Fq "$EXPECTED_CONF_DIR" || fail "artifact does not embed expected live config directory"':
         'grep -aFq "$EXPECTED_CONF_DIR" "$ARTIFACT" || fail "artifact does not embed expected live config directory"',
     'if strings "$ARTIFACT" | grep -Fq "$FRESH_OUT/stage/etc"; then':
         'if grep -aFq "$FRESH_OUT/stage/etc" "$ARTIFACT"; then',
 }
 
-for old, new in replacements.items():
+for old, new in simple_replacements.items():
     count = src.count(old)
     if count != 1:
         raise SystemExit(f"expected exactly one base-installer match, found {count}: {old}")
     src = src.replace(old, new)
 
+old_startup = '''READY=0
+for _ in {1..120}; do
+    if ! systemctl is-active --quiet "$SERVICE" || ! pgrep -x worldserver >/dev/null; then
+        fail "worldserver exited during startup"
+    fi
+    NEW_LOG="$(tail -n +"$((LOG_START + 1))" "$CONSOLE_LOG" 2>/dev/null || true)"
+    if grep -Eq '>> FATAL ERROR|ACE00046|Used MySQL library version .* does not match|Config::LoadFile: Failed open file' <<<"$NEW_LOG"; then
+        fail "new worldserver startup logged a fatal/configuration error"
+    fi
+    if grep -Fq '(worldserver-daemon) ready...' <<<"$NEW_LOG"; then
+        READY=1
+        break
+    fi
+    sleep 1
+done
+[[ "$READY" == 1 ]] || fail "worldserver stayed alive but did not reach the AzerothCore ready marker within the startup gate"
+echo "PASS: new worldserver reached AzerothCore ready marker"
+'''
+
+new_startup = '''# The systemd unit wraps worldserver in tmux. systemctl can become active a few
+# milliseconds before tmux has spawned the child, so do not treat an immediate
+# pgrep miss as a crash. First allow a bounded child-spawn grace period.
+CHILD_SEEN=0
+for _ in {1..30}; do
+    NEW_LOG="$(tail -n +"$((LOG_START + 1))" "$CONSOLE_LOG" 2>/dev/null || true)"
+    if grep -Eq '>> FATAL ERROR|ACE00046|Used MySQL library version .* does not match|Config::LoadFile: Failed open file' <<<"$NEW_LOG"; then
+        fail "new worldserver startup logged a fatal/configuration error during child-spawn grace period"
+    fi
+    if pgrep -x worldserver >/dev/null; then
+        CHILD_SEEN=1
+        break
+    fi
+    if systemctl is-failed --quiet "$SERVICE"; then
+        fail "worldserver service entered failed state before child process appeared"
+    fi
+    sleep 1
+done
+[[ "$CHILD_SEEN" == 1 ]] || fail "worldserver child did not appear within 30-second startup grace period"
+echo "PASS: worldserver child process appeared after service start"
+
+# Once the child exists, require it and the service to remain alive while the
+# normal AzerothCore startup sequence reaches its ready marker.
+READY=0
+for _ in {1..300}; do
+    if ! systemctl is-active --quiet "$SERVICE"; then
+        fail "worldserver service left active state during startup"
+    fi
+    if ! pgrep -x worldserver >/dev/null; then
+        fail "worldserver child exited during startup"
+    fi
+    NEW_LOG="$(tail -n +"$((LOG_START + 1))" "$CONSOLE_LOG" 2>/dev/null || true)"
+    if grep -Eq '>> FATAL ERROR|ACE00046|Used MySQL library version .* does not match|Config::LoadFile: Failed open file' <<<"$NEW_LOG"; then
+        fail "new worldserver startup logged a fatal/configuration error"
+    fi
+    if grep -Fq '(worldserver-daemon) ready...' <<<"$NEW_LOG"; then
+        READY=1
+        break
+    fi
+    sleep 1
+done
+[[ "$READY" == 1 ]] || fail "worldserver stayed alive but did not reach the AzerothCore ready marker within 300 seconds"
+echo "PASS: new worldserver reached AzerothCore ready marker"
+'''
+
+count = src.count(old_startup)
+if count != 1:
+    raise SystemExit(f"expected exactly one startup-gate block, found {count}")
+src = src.replace(old_startup, new_startup)
+
 out.write_text(src)
 out.chmod(0o700)
 PY
 
-echo "PASS: prepared v4 installer with pipefail-safe binary config-path gates"
+echo "PASS: prepared v4 installer with pipefail-safe config gates and tmux child-spawn grace period"
 set +e
 bash "$TMP" "$@"
 RC=$?
