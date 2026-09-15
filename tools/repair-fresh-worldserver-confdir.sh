@@ -128,7 +128,8 @@ fi
 if grep -Fq "$STAGE_DIR/etc" "$COMPILE_DB"; then
     fail "compile database still contains staging config directory"
 fi
-grep -F '_CONF_DIR' "$COMPILE_DB" | grep -Fq "$LIVE_CONF_DIR" || fail "compile database does not carry live _CONF_DIR definition"
+grep -Fq '_CONF_DIR' "$COMPILE_DB" || fail "compile database does not contain _CONF_DIR definition"
+grep -Fq "$LIVE_CONF_DIR" "$COMPILE_DB" || fail "compile database does not carry live config directory"
 echo "PASS: compile database uses live _CONF_DIR and active source only"
 
 echo
@@ -154,11 +155,11 @@ stat -c 'owner=%U:%G mode=%a size=%s mtime=%y' "$NEW_BIN"
 NEW_SHA="$(sha256sum "$NEW_BIN" | awk '{print $1}')"
 echo "$NEW_SHA  $NEW_BIN"
 ldd "$NEW_BIN" | grep -E 'mysql|mariadb' || fail "worldserver is not linked to MySQL client library"
-strings "$NEW_BIN" | grep -Fq "$LIVE_CONF_DIR" || fail "rebuilt binary does not embed live config directory"
-if strings "$NEW_BIN" | grep -Fq "$STAGE_DIR/etc"; then
+grep -aFq "$LIVE_CONF_DIR" "$NEW_BIN" || fail "rebuilt binary does not embed live config directory"
+if grep -aFq "$STAGE_DIR/etc" "$NEW_BIN"; then
     fail "rebuilt binary still embeds staging config directory"
 fi
-if strings "$NEW_BIN" | grep -Fq "/home/azeroth/update-work-20260910-145140/azerothcore"; then
+if grep -aFq "/home/azeroth/update-work-20260910-145140/azerothcore" "$NEW_BIN"; then
     fail "rebuilt binary embeds obsolete September 10 source path"
 fi
 echo "PASS: binary embeds live config directory and no obsolete/staging config path"
