@@ -8,6 +8,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE="${1:-}"
 FRESH_OUT="${2:-}"
 EXPECTED_CORE="413bea61a85e20d9caef7d66fc601a661fdddd9d"
+EXPECTED_CONF_DIR="$SERVER_ROOT/etc"
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || fail "run as root"
@@ -17,13 +18,13 @@ fail() { echo "ERROR: $*" >&2; exit 1; }
 CONF="$SERVER_ROOT/etc/worldserver.conf"
 CONSOLE_LOG="$SERVER_ROOT/logs/worldserver-console.log"
 META="$FRESH_OUT/BUILD-METADATA.env"
-FINAL_REPORT="$FRESH_OUT/FRESH-BUILD-FINALIZE-REPORT.txt"
+CONF_REPAIR_REPORT="$FRESH_OUT/CONF-DIR-REBUILD-REPORT.txt"
 ARTIFACT="$FRESH_OUT/artifact/worldserver"
 [[ -f "$CONF" ]] || fail "worldserver.conf missing"
 [[ -f "$META" ]] || fail "fresh-build metadata missing: $META"
-[[ -f "$FINAL_REPORT" ]] || fail "fresh-build finalization report missing: $FINAL_REPORT"
+[[ -f "$CONF_REPAIR_REPORT" ]] || fail "CONF_DIR repair report missing: $CONF_REPAIR_REPORT"
 [[ -x "$ARTIFACT" ]] || fail "verified fresh worldserver artifact missing: $ARTIFACT"
-grep -Fxq 'RESULT: PASS' "$FINAL_REPORT" || fail "fresh-build finalizer did not record RESULT: PASS"
+grep -Fxq 'RESULT: PASS' "$CONF_REPAIR_REPORT" || fail "CONF_DIR repair did not record RESULT: PASS"
 
 meta_value() {
     local key="$1"
@@ -34,6 +35,7 @@ META_CORE_ROOT="$(meta_value CORE_ROOT)"
 META_CORE_HEAD="$(meta_value CORE_HEAD)"
 META_BUNDLE="$(meta_value BUNDLE)"
 META_MYSQL_ID="$(meta_value MYSQL_VERSION_ID)"
+META_CONF_DIR="$(meta_value CONF_DIR)"
 META_WORLD_SERVER="$(meta_value WORLD_SERVER)"
 META_WORLD_SHA="$(meta_value WORLD_SERVER_SHA256)"
 META_PROVENANCE="$(meta_value PROVENANCE_GATE)"
@@ -41,10 +43,15 @@ META_PROVENANCE="$(meta_value PROVENANCE_GATE)"
 [[ "$META_CORE_ROOT" == "$CORE_ROOT" ]] || fail "fresh artifact core root mismatch: $META_CORE_ROOT"
 [[ "$META_CORE_HEAD" == "$EXPECTED_CORE" ]] || fail "fresh artifact core revision mismatch: $META_CORE_HEAD"
 [[ "$META_BUNDLE" == "$BUNDLE" ]] || fail "fresh artifact was built for a different Milestone 4 bundle: $META_BUNDLE"
+[[ "$META_CONF_DIR" == "$EXPECTED_CONF_DIR" ]] || fail "fresh artifact compiled config directory mismatch: ${META_CONF_DIR:-unset}"
 [[ "$META_WORLD_SERVER" == "$ARTIFACT" ]] || fail "fresh artifact metadata path mismatch: $META_WORLD_SERVER"
-[[ "$META_PROVENANCE" == "cmake+compile_commands+no-obsolete-path-v2" ]] || fail "unexpected provenance gate: $META_PROVENANCE"
+[[ "$META_PROVENANCE" == "cmake+compile_commands+mysql+live-confdir-v3" ]] || fail "unexpected provenance gate: $META_PROVENANCE"
 ACTUAL_WORLD_SHA="$(sha256sum "$ARTIFACT" | awk '{print $1}')"
 [[ -n "$META_WORLD_SHA" && "$ACTUAL_WORLD_SHA" == "$META_WORLD_SHA" ]] || fail "fresh artifact SHA256 mismatch"
+strings "$ARTIFACT" | grep -Fq "$EXPECTED_CONF_DIR" || fail "artifact does not embed expected live config directory"
+if strings "$ARTIFACT" | grep -Fq "$FRESH_OUT/stage/etc"; then
+    fail "artifact still embeds staging config directory"
+fi
 
 conf_value() {
     local key="$1" file="$2"
@@ -136,12 +143,13 @@ on_exit() {
 }
 trap on_exit EXIT
 
-echo "===== Playable Tuskarr live PoC install v2 ====="
+echo "===== Playable Tuskarr live PoC install v3 ====="
 echo "Bundle:         $BUNDLE"
 echo "Fresh build:    $FRESH_OUT"
 echo "Artifact:       $ARTIFACT"
 echo "Artifact SHA:   $ACTUAL_WORLD_SHA"
 echo "Artifact MySQL: $META_MYSQL_ID"
+echo "Artifact CONF:  $META_CONF_DIR"
 echo "Backup:         $BACKUP"
 echo "Service:        $SERVICE"
 echo "Started:        $(date -Is)"
@@ -170,6 +178,7 @@ read -r CURRENT_MYSQL_COMPILE CURRENT_MYSQL_RUNTIME CURRENT_MYSQL_INFO <<<"$PROB
 echo "compile=$CURRENT_MYSQL_COMPILE runtime=$CURRENT_MYSQL_RUNTIME info=$CURRENT_MYSQL_INFO"
 [[ "$CURRENT_MYSQL_COMPILE" == "$META_MYSQL_ID" && "$CURRENT_MYSQL_RUNTIME" == "$META_MYSQL_ID" ]] || fail "verified worldserver was built for MySQL $META_MYSQL_ID but current runtime is $CURRENT_MYSQL_RUNTIME"
 echo "PASS: verified artifact and current MySQL environment agree ($META_MYSQL_ID)"
+echo "PASS: verified artifact compiled config directory is $META_CONF_DIR"
 
 LIVE_BIN="$SERVER_ROOT/bin/worldserver"
 TARGET_CPP="$CORE_ROOT/modules/mod-playerbots/src/Bot/Factory/RandomPlayerbotFactory.cpp"
@@ -182,9 +191,10 @@ echo "PREINSTALL_SQL_COUNTS playercreateinfo=$PCI_BEFORE player_race_stats=$PRS_
 [[ "$PCI_BEFORE" == 0 && "$PRS_BEFORE" == 0 && "$PCA_BEFORE" == 0 ]] || fail "race 17/18 world rows already exist; refusing destructive PoC replacement"
 
 ARTIFACT_SIZE="$(stat -c %s "$ARTIFACT")"
-AVAIL_BYTES="$(df -Pk "$SERVER_ROOT/bin" | awk 'NR==2 {print $4 * 1024}')"
-NEEDED_BYTES=$((ARTIFACT_SIZE + 1073741824))
-(( AVAIL_BYTES > NEEDED_BYTES )) || fail "insufficient free space to stage verified worldserver beside live binary"
+ARTIFACT_KIB=$(( (ARTIFACT_SIZE + 1023) / 1024 ))
+AVAIL_KIB="$(df -Pk "$SERVER_ROOT/bin" | awk 'NR==2 {print $4}')"
+NEEDED_KIB=$((ARTIFACT_KIB + 1048576))
+(( AVAIL_KIB > NEEDED_KIB )) || fail "insufficient free space to stage verified worldserver beside live binary"
 
 cp -a "$LIVE_BIN" "$BACKUP/live/worldserver"
 cp -a "$TARGET_CPP" "$BACKUP/core/RandomPlayerbotFactory.cpp"
@@ -209,7 +219,6 @@ mysqldump_rows "$WORLD_INFO" playercreateinfo 'race IN (17,18)' "$BACKUP/db/play
 mysqldump_rows "$WORLD_INFO" player_race_stats 'Race IN (17,18)' "$BACKUP/db/player_race_stats.sql"
 mysqldump_rows "$WORLD_INFO" playercreateinfo_action 'race IN (17,18)' "$BACKUP/db/playercreateinfo_action.sql"
 
-grep -qi 'mysqldump' "$BACKUP/db/playercreateinfo.sql" || true
 {
     printf 'SERVICE=%q\n' "$SERVICE"
     printf 'BUNDLE=%q\n' "$BUNDLE"
@@ -286,8 +295,8 @@ for _ in {1..120}; do
         fail "worldserver exited during startup"
     fi
     NEW_LOG="$(tail -n +"$((LOG_START + 1))" "$CONSOLE_LOG" 2>/dev/null || true)"
-    if grep -Eq '>> FATAL ERROR|ACE00046|Used MySQL library version .* does not match' <<<"$NEW_LOG"; then
-        fail "new worldserver startup logged a fatal error"
+    if grep -Eq '>> FATAL ERROR|ACE00046|Used MySQL library version .* does not match|Config::LoadFile: Failed open file' <<<"$NEW_LOG"; then
+        fail "new worldserver startup logged a fatal/configuration error"
     fi
     if grep -Fq '(worldserver-daemon) ready...' <<<"$NEW_LOG"; then
         READY=1
