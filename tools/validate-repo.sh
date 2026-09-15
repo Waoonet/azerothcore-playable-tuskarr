@@ -22,6 +22,7 @@ required=(
   tools/live-poc-preflight.sh
   tools/live-poc-preflight-v2.sh
   tools/install-live-poc.sh
+  tools/install-live-poc-v4.sh
   tools/rollback-live-poc.sh
   tools/audit-build-provenance.sh
   tools/stage-fresh-worldserver.sh
