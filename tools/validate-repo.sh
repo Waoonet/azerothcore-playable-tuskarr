@@ -15,6 +15,9 @@ required=(
   tools/tuskarr-mpq-extract.cpp
   tools/audit-client-glue.py
   tools/analyze-extracted-glue.sh
+  tools/build-client-ui-patch.py
+  tools/tuskarr-mpq-pack.cpp
+  tools/stage-milestone4.sh
   tools/validate-repo.sh
 )
 
