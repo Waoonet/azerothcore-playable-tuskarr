@@ -24,6 +24,7 @@ required=(
   tools/install-live-poc.sh
   tools/rollback-live-poc.sh
   tools/audit-build-provenance.sh
+  tools/stage-fresh-worldserver.sh
   tools/validate-repo.sh
 )
 
