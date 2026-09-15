@@ -14,6 +14,7 @@ required=(
   tools/extract-client-glue.sh
   tools/tuskarr-mpq-extract.cpp
   tools/audit-client-glue.py
+  tools/analyze-extracted-glue.sh
   tools/validate-repo.sh
 )
 
